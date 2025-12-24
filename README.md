@@ -9,14 +9,26 @@ This research proposes a comparative study of three families of methods for ener
 ## References
 
 ¹ Craik et al., “Deep learning for electroencephalogram (EEG) classification tasks: a review,” J Neural Eng., 2019.
+
 ² Farina et al., “Sparsity in transformers: A systematic literature review,” Neurocomputing, 2024.
+
 ³ Gao et al., “Emotion recognition from multichannel EEG signals based on low-rank subspace self-representation features,” Biomed. Signal Process. Control, 2025.
+
 ⁴ Rakka et al., “A Review of State-of-the-art Mixed-Precision Neural Network Frameworks,” IEEE TPAMI, 2024.
+
 ⁵ Song et al., “EEG Conformer: Convolutional Transformer for EEG Decoding and Visualization,” IEEE TNSRE, 2022.
+
 ⁶ Swaminathan et al., “Sparse low rank factorization for deep neural network compression,” Neurocomputing, 2020.
+
 ⁷ Wang et al., “Sparse Bayesian Learning for End-to-End EEG Decoding,” IEEE TPAMI, 2023.
+
 ⁸ Xie and Oniga, “A Comprehensive Review of Hardware Acceleration Techniques and Convolutional Neural Networks for EEG Signals,” Sensors, 2024.
+
 ⁹ Yan et al., “EEG classification with spiking neural network: Smaller, better, more energy efficient,” Smart Health, 2022.
+
 ¹⁰ Yang and Liu, “Stable Low-Rank CP Decomposition for Compression of Convolutional Neural Networks Based on Sensitivity,” Applied Sciences, 2024.
+
 ¹¹ Zhang et al., “Post-training Quantization for Neural Networks with Provable Guarantees,” SIAM JMDS, 2023.
+
 ¹² Zhong et al., “Knowledge-guided quantization-aware training for EEG-based emotion recognition,” J. Vis. Commun. Image Represent., 2025.
+
