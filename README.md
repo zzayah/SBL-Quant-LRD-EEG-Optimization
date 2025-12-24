@@ -11,7 +11,6 @@ This work proposes a comparative study of three families of methods for energy-a
 
 We implement representative models for each paradigm on common EEG classification tasks (with emphasis on affective and BCI-relevant paradigms), define shared evaluation metrics capturing both decoding performance and computational efficiency, and analyze trade-offs. The goal is to provide practical recommendations for balancing accuracy, efficiency, and interpretability.
 
----
 
 ## References
 
