@@ -1,3 +1,13 @@
 https://physionet.org/content/eegmmidb/1.0.0/
 - Large, open source EEG dataset from 109 participants
 
+Chowdhury, R. R., et al. (2023). Enhancing cross-subject motor imagery classification in EEG using EEGNet Fusion V2. Sensors. 
+PMC
+
+Shuqfa, Z., Lakas, A., & Belkacem, A. N. (2024). Increasing accessibility to a large BCI dataset: Curation of Physionet EEG Motor Movement/Imagery Dataset. Data in Brief, 110181. 
+ScienceDirect
+
+Hadi-Saleh, Z., et al. (2025). Towards decoding motor imagery from EEG signals using ... Scientific Reports. 
+Nature
+
+https://pypi.org/project/mne/
