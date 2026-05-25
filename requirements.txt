@@ -1,5 +1,6 @@
 mne
 pandas
 numpy
+optuna
 torch
 matplotlib
