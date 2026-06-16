@@ -1,11 +1,12 @@
-import optuna
 import json
 from pathlib import Path
 
 import numpy as np
+import optuna
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
+from tqdm.auto import trange
 
 
 DATA_PATH = Path("data/driver-drowsiness/orosco/dataset/orosco_windowed_balanced.npz")
@@ -29,12 +30,12 @@ num_classes = int(y.max()) + 1
 class DynamicCNN:
     def __init__(self, trial: optuna.trial.Trial, in_channels: int, length: int, num_classes: int) -> None:
         self.activation_name = trial.suggest_categorical("activation", ["relu", "elu"])
-        self.num_layers = trial.suggest_categorical("num_layers", [1, 2, 3])
+        self.num_blocks = trial.suggest_categorical("num_blocks", [1, 2, 3])
         fc_options = {"fc16": [16], "fc32": [32], "fc64": [64], "fc128": [128], "fc64_32": [64, 32]}
         self.fc_layers = fc_options[trial.suggest_categorical("fc_layers", list(fc_options))]
 
         self.conv_layers = []
-        for i in range(self.num_layers):
+        for i in range(self.num_blocks):
             out_channels = trial.suggest_categorical(f"conv_{i}_channels", [4, 8, 16, 24, 32])
             self.conv_layers.append((in_channels, out_channels, 3, 1, 0))
             in_channels = out_channels
@@ -42,8 +43,8 @@ class DynamicCNN:
 
         activation = nn.ReLU if self.activation_name == "relu" else nn.ELU
         layers = []
-        for in_channels, out_channels, kernel_size, stride, padding in self.conv_layers:
-            layers += [nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding), activation()]
+        for conv_in_channels, out_channels, kernel_size, stride, padding in self.conv_layers:
+            layers += [nn.Conv1d(conv_in_channels, out_channels, kernel_size, stride, padding), activation()]
 
         layers.append(nn.Flatten())
         in_features = in_channels * length
@@ -80,7 +81,8 @@ def objective(trial):
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     loss_fn = nn.CrossEntropyLoss()
 
-    for _ in range(EPOCHS):
+    epoch_bar = trange(EPOCHS, desc=f"Trial {trial.number}", leave=False)
+    for _ in epoch_bar:
         model.train()
         for xb, yb in train_loader:
             xb, yb = xb.to(DEVICE), yb.to(DEVICE)
@@ -88,6 +90,7 @@ def objective(trial):
             loss = loss_fn(model(xb), yb)
             loss.backward()
             optimizer.step()
+            epoch_bar.set_postfix(loss=f"{loss.item():.4f}")
 
     train_acc = accuracy(model, train_loader)
     val_acc = accuracy(model, val_loader)

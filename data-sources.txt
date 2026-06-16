@@ -4,5 +4,5 @@ https://figshare.com/articles/dataset/EEG_driver_drowsiness_dataset/14273687
 https://datadryad.org/dataset/doi:10.5061/dryad.5tb2rbp9c
 - Driver drowsiness dataset
 
-Extremely important, highly cited packed used for EEG visualization and data science
 https://pypi.org/project/mne/
+- EEG DS package
