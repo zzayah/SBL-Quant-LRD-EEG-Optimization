@@ -32,3 +32,20 @@ This research proposes a comparative study of three families of methods for ener
 
 ¹² Zhong et al., “Knowledge-guided quantization-aware training for EEG-based emotion recognition,” J. Vis. Commun. Image Represent., 2025.
 
+## Motor-imagery data import
+
+Install the dependencies, then smoke-test one subject from each source before a
+full download:
+
+```bash
+python -m pip install -r requirements.txt
+python data/prepare_data.py --dataset bnci2014_001 --subjects 1
+python data/prepare_data.py --dataset lee2019_mi --subjects 1
+python data/prepare_data.py --dataset physionet_mi --subjects 1
+```
+
+Run `python data/prepare_data.py` to create `data/seed-0/splits_seed0.json`, download
+and export every supported subject, and validate the complete result. The
+operation is resumable. Raw MOABB data is cached under `data/moabb_raw`;
+normalized per-subject arrays and metadata are written under
+`data/moabb_processed`. Both large locations are ignored by Git.

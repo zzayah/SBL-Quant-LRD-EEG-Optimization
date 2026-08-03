@@ -1,8 +1,8 @@
-.DS_Store
-
 # Repo specific
-data/driver-drowsiness/cui/dataset.mat
-data/driver-drowsiness/orosco/dataset
+data/moabb_raw/
+data/moabb_processed/
+data/seed-*/eeg-parzen/
+data/seed-*/benchmarking/
 
 ## https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
 # General
