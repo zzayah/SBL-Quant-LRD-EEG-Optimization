@@ -62,7 +62,7 @@ three studies with:
 bash eeg-parzen/run/run-cuda-nas.sh
 ```
 
-The script uses Python 3.11, creates `.venv`, installs `requirements.txt`,
+The script uses Python 3.14, creates `.venv`, installs `requirements.txt`,
 checks CUDA, downloads and validates all datasets, and runs all three
 50-proposal studies sequentially.
 
