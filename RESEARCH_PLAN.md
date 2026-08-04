@@ -182,6 +182,51 @@ The complete CUDA-node command is `eeg-parzen/run/run-cuda-nas.sh`. It creates
 the environment, prepares all datasets, and runs the three 50-proposal NAS
 studies sequentially.
 
+## Pre-CUDA-run implementation audit
+
+The active pipeline passed all eight data-loader tests and a dry 50-proposal
+Optuna study. Subject partitions are disjoint, normalization uses training
+subjects only, locked test subjects are not loaded by NAS, balanced accuracy
+is computed correctly, conditional parameter distributions are static, block
+widths are non-decreasing, and pooling cannot reduce the temporal dimension
+below one. A 5,000-architecture simulation across 22, 62, and 64 input
+channels produced no model above 350,000 parameters; median models contained
+roughly 31,000--33,000 parameters.
+
+The CUDA run is valid as the planned initial search. Its main limitation is
+coverage: 50 proposals are sparse relative to the large conditional space,
+and TPE may repeat configurations. Exact continuation after interruption and
+cross-machine repetition also depend on Optuna sampler state and package
+versions. These are reporting and follow-up concerns, not reasons to stop the
+active run.
+
+## Completed seed-0 CUDA NAS
+
+Run `6c9c03be` completed all 50 proposals for each dataset on CUDA with no
+failed or pruned trials. Best validation balanced accuracies were 68.06% for
+BNCI2014_001 (trial 34, 47,034 parameters), 80.87% for Lee2019_MI (trial 44,
+102,786 parameters), and 78.04% for PhysionetMI (trial 20, 22,050 parameters).
+PhysionetMI class recalls were 83.42% left and 72.65% right, resolving the
+earlier class-collapse problem. Locked-test evaluation has not yet run.
+
+Post-search review found 44, 47, and 43 unique architectures for BNCI,
+Lee2019_MI, and PhysionetMI, respectively. Every repeated architecture
+reproduced identical fold metrics on CUDA. TPE improved the best score from
+the first ten trials to the final winner on all three datasets. Model size had
+no significant monotonic association with validation performance. Lee2019_MI
+and PhysionetMI produced balanced, stable winners and converged strongly on
+flatten heads, ELU, 32 temporal filters, stem pooling 2, and spatial multiplier
+1. BNCI remained less stable because only seven development subjects were
+available; its winning mean was 68.06%, with fold scores of 70.49%, 58.68%,
+and 75.00%. Keep locked testing closed until fixed baselines are trained and
+reviewed under the same CUDA environment.
+
+Run the five fixed baselines in two groups with
+`benchmarking/run/run-baselines-2.sh` and
+`benchmarking/run/run-baselines-3.sh`. Each group trains sequentially across
+all three datasets under the separate run ID `baseline-seed0`, and the runner
+skips completed entries when resumed.
+
 - Fixed-architecture baselines: train five hand-designed sequential CNNs using
   the identical seed, subject splits, normalization, optimizer, batch size,
   epoch limit, and early stopping used by NAS. During development, compare

@@ -92,14 +92,29 @@ def train(
     return evaluate(model, validation_loader, device), best_epoch, epoch, training_seconds
 
 
-def run_dataset(dataset: str, output_root: Path, session_id: str) -> None:
+def run_dataset(
+    dataset: str,
+    baseline_names: list[str],
+    output_root: Path,
+    session_id: str,
+) -> None:
     output_dir = output_root / dataset / session_id
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "baseline_results.jsonl"
+    completed = set()
+    if output_file.exists():
+        with output_file.open(encoding="utf-8") as file:
+            completed = {
+                json.loads(line)["baseline"] for line in file if line.strip()
+            }
     folds = range(3) if dataset == "bnci2014_001" else [None]
     device = cnn.default_device()
 
-    for name, factory in BASELINES.items():
+    for name in baseline_names:
+        factory = BASELINES[name]
+        if name in completed:
+            print(f"{dataset} {name}: already complete")
+            continue
         fold_results = []
         parameter_count = None
         model_description = None
@@ -167,9 +182,14 @@ def run_dataset(dataset: str, output_root: Path, session_id: str) -> None:
         )
 
 
-def main(datasets: list[str], output_dir: str, session_id: str) -> None:
+def main(
+    datasets: list[str],
+    baseline_names: list[str],
+    output_dir: str,
+    session_id: str,
+) -> None:
     for dataset in datasets:
-        run_dataset(dataset, Path(output_dir), session_id)
+        run_dataset(dataset, baseline_names, Path(output_dir), session_id)
 
 
 if __name__ == "__main__":
@@ -183,8 +203,14 @@ if __name__ == "__main__":
         "--output-dir",
         default=f"data/seed-{SEED}/benchmarking",
     )
+    parser.add_argument(
+        "--baseline",
+        nargs="+",
+        choices=tuple(BASELINES),
+        default=list(BASELINES),
+    )
     parser.add_argument("--session-id", default=secrets.token_hex(4))
     args = parser.parse_args()
     selected = list(SUPPORTED_DATASETS) if args.dataset == "all" else [args.dataset]
     print(f"Run ID: {args.session_id}")
-    main(selected, args.output_dir, args.session_id)
+    main(selected, args.baseline, args.output_dir, args.session_id)

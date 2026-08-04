@@ -14,12 +14,17 @@ classifiers. None use global temporal averaging. They are dataset-independent
 except for the channel-spanning spatial input layer.
 
 Do not run baseline training concurrently with NAS on the same accelerator.
-After NAS finishes, run all baselines from the repository root:
+After NAS finishes, run the baselines from two terminals on the CUDA node:
 
 ```bash
-source .venv/bin/activate
-python benchmarking/run-baselines.py
+bash benchmarking/run/run-baselines-2.sh
+bash benchmarking/run/run-baselines-3.sh
 ```
+
+Each script trains its assigned baselines sequentially across all three
+datasets under `data/seed-0/benchmarking/<dataset>/baseline-seed0/`. NAS data
+remains separately under `data/seed-0/eeg-parzen/`. The runner is resumable
+and skips completed entries.
 
 To run one dataset:
 
