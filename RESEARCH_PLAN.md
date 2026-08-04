@@ -81,15 +81,19 @@ logits and cross-entropy. Early stopping and Optuna selection use validation
 balanced accuracy. BNCI scores are averaged over its three subject folds;
 Lee2019_MI and PhysionetMI use fixed validation-subject groups.
 
-`eeg-parzen/control-logic.py` is the single source of the NAS seed. Changing
-its `SEED` controls creation of the corresponding subject split, Python,
+`eeg-parzen/control-logic.py` is the single source of the NAS seed. Setting
+`EEG_SEED` controls creation of the corresponding subject split, Python,
 NumPy, PyTorch, DataLoader shuffling, model initialization, and the TPE sampler.
 Seed-dependent data artifacts live under `data/seed-<seed>/`; for example,
 seed 0 uses `data/seed-0/splits_seed0.json`. Raw and normalized MOABB data are
 shared because their deterministic preprocessing does not depend on NAS seed.
 NAS studies use `data/seed-<seed>/eeg-parzen/<dataset>/<run-id>/`.
+Seed-specific JSONL, SQLite, split, and baseline artifacts are tracked in Git.
+Only the large shared `data/moabb_raw/` download cache and
+`data/moabb_processed/` subject arrays remain ignored; neither should be
+deleted because they are the reusable source and prepared EEG data.
 `eeg-parzen/run/run-eeg-parzen.sh` is intentionally minimal: it installs requirements
-into the active Python environment and runs the three 50-proposal studies
+into the active Python environment and runs the three 100-proposal studies
 sequentially. Data preparation and environment/GPU setup remain separate. Its
 optional run ID can be supplied again to resume the same SQLite studies.
 
@@ -179,7 +183,7 @@ architecture search. Any CPU-versus-MPS reproduction check for that fixed
 model must run separately and must not be recorded as a NAS trial.
 
 The complete CUDA-node command is `eeg-parzen/run/run-cuda-nas.sh`. It creates
-the environment, prepares all datasets, and runs the three 50-proposal NAS
+the environment, prepares all datasets, and runs the three 100-proposal NAS
 studies sequentially.
 
 ## Pre-CUDA-run implementation audit
@@ -202,7 +206,7 @@ active run.
 
 ## Completed seed-0 CUDA NAS
 
-Run `6c9c03be` completed all 50 proposals for each dataset on CUDA with no
+Run `nas-seed0` completed its first 50 proposals for each dataset on CUDA with no
 failed or pruned trials. Best validation balanced accuracies were 68.06% for
 BNCI2014_001 (trial 34, 47,034 parameters), 80.87% for Lee2019_MI (trial 44,
 102,786 parameters), and 78.04% for PhysionetMI (trial 20, 22,050 parameters).
@@ -226,6 +230,26 @@ Run the five fixed baselines in two groups with
 `benchmarking/run/run-baselines-3.sh`. Each group trains sequentially across
 all three datasets under the separate run ID `baseline-seed0`, and the runner
 skips completed entries when resumed.
+
+The seed-0 CUDA baseline calibration completed all five architectures on all
+three datasets under `baseline-seed0`. Best baseline validation balanced
+accuracies were 69.27% for BNCI2014_001 (`wide_eegnet`, 7,026 parameters),
+79.88% for Lee2019_MI (`dilated_temporal`, 13,250 parameters), and 76.67% for
+PhysionetMI (`deep_separable`, 6,530 parameters). The NAS winners scored
+68.06%, 80.87%, and 78.04%, respectively. Thus NAS trails the best BNCI
+baseline by 1.22 percentage points and leads the best Lee and Physionet
+baselines by 1.00 and 1.36 points. These small validation differences are not
+treated as test conclusions. Concurrent baseline runs invalidate their timing
+measurements, so final latency must be measured sequentially during locked
+evaluation.
+
+Before locked testing, expand the architecture-search budget to 100 proposals
+per dataset for seeds 0, 1, and 2. Seed 0 resumes `nas-seed0` from 50 to 100;
+seeds 1 and 2 generate run IDs of the form `nas-seed<seed>-<id>`. The launchers are
+`eeg-parzen/run/run-nas-seed0.sh`, `run-nas-seed1.sh`, and
+`run-nas-seed2.sh`. `EEG_SEED` sets the single central seed used by subject
+splitting, TPE, initialization, and data ordering. Keep all locked tests
+closed until these searches and their corresponding baselines are complete.
 
 - Fixed-architecture baselines: train five hand-designed sequential CNNs using
   the identical seed, subject splits, normalization, optimizer, batch size,

@@ -1,8 +1,6 @@
 # Repo specific
 data/moabb_raw/
 data/moabb_processed/
-data/seed-*/eeg-parzen/
-data/seed-*/benchmarking/
 
 ## https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
 # General

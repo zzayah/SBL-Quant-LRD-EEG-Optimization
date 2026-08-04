@@ -64,7 +64,7 @@ bash eeg-parzen/run/run-cuda-nas.sh
 
 The script uses Python 3.14, creates `.venv`, installs `requirements.txt`,
 checks CUDA, downloads and validates all datasets, and runs all three
-50-proposal studies sequentially.
+100-proposal studies sequentially.
 
 For an already configured environment with prepared data, use:
 
@@ -74,6 +74,23 @@ bash eeg-parzen/run/run-eeg-parzen.sh
 
 Run it inside `tmux`; output is stored under
 `data/seed-0/eeg-parzen/<dataset>/<run-id>/`.
+
+## Three-seed 100-trial runs
+
+Run these in three separate GPU-node terminals:
+
+```bash
+bash eeg-parzen/run/run-nas-seed0.sh
+bash eeg-parzen/run/run-nas-seed1.sh
+bash eeg-parzen/run/run-nas-seed2.sh
+```
+
+Seed 0 resumes run `nas-seed0` from 50 to 100 total trials. Seeds 1 and 2
+generate run IDs in the form `nas-seed<seed>-<id>` and run 100 trials per
+dataset under `data/seed-1/` and `data/seed-2/`. Pass a printed run ID back to
+the same launcher to resume it. `EEG_SEED` sets the single central seed in
+`control-logic.py`, which controls splitting, TPE, initialization, and data
+ordering.
 
 ## Final retraining and locked testing
 

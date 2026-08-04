@@ -2,10 +2,11 @@
 """Entry point for the subject-independent EEG architecture searches."""
 
 import argparse
+import os
 import sys
 
 
-SEED = 0
+SEED = int(os.environ.get("EEG_SEED", "0"))
 
 if __name__ == "__main__" and "--print-seed" in sys.argv:
     print(SEED)
@@ -17,7 +18,7 @@ import cnn
 from data.eeg_dataset import SUPPORTED_DATASETS, create_subject_splits
 
 DATASETS = tuple(SUPPORTED_DATASETS)
-N_TRIALS = 50
+N_TRIALS = 100
 
 
 def _run_search(dataset: str, output_dir: str, session_id: str, seed: int) -> None:
