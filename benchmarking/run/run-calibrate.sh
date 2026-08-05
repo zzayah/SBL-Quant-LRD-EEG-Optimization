@@ -6,8 +6,10 @@ source .venv/bin/activate
 
 SEED="${1:?Usage: bash benchmarking/run/run-calibrate.sh SEED RUN_ID}"
 RUN_ID="${2:?Usage: bash benchmarking/run/run-calibrate.sh SEED RUN_ID}"
+SUITE="${3:-fixed}"
 
 python benchmarking/calibrate-final-training.py \
     --output-dir "data/seed-${SEED}/benchmarking/calibration" \
     --run-id "$RUN_ID" \
-    --seed "$SEED"
+    --seed "$SEED" \
+    --suite "$SUITE"

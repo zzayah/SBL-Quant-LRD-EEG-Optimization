@@ -19,7 +19,7 @@ for path in (REPO_ROOT, EEG_PARZEN_DIR):
         sys.path.insert(0, str(path))
 
 import cnn
-from benchmarking.architectures import BASELINES
+from benchmarking.architectures import BASELINE_SUITES
 from data.eeg_dataset import SUPPORTED_DATASETS, make_final_data_loaders
 
 
@@ -45,7 +45,7 @@ def train(model, loader, device, epochs: int) -> float:
     return time.perf_counter() - started
 
 
-def main(output_dir: str, run_id: str, seed: int, epochs: int) -> None:
+def main(output_dir: str, run_id: str, seed: int, epochs: int, suite: str) -> None:
     if epochs < 1:
         raise ValueError("epochs must be positive")
     root = Path(output_dir).expanduser().resolve() / run_id / f"epochs-{epochs}"
@@ -62,7 +62,7 @@ def main(output_dir: str, run_id: str, seed: int, epochs: int) -> None:
             seed=seed,
             include_test=False,
         )
-        for name, factory in BASELINES.items():
+        for name, factory in BASELINE_SUITES[suite].items():
             cnn.seed_everything(seed)
             loaders["train"].generator.manual_seed(seed)
             model = factory(info["channels"]).to(device)
@@ -108,5 +108,6 @@ if __name__ == "__main__":
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--epochs", type=int, required=True)
+    parser.add_argument("--suite", choices=tuple(BASELINE_SUITES), default="fixed")
     args = parser.parse_args()
-    main(args.output_dir, args.run_id, args.seed, args.epochs)
+    main(args.output_dir, args.run_id, args.seed, args.epochs, args.suite)

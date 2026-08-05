@@ -17,12 +17,12 @@ for path in (REPO_ROOT, EEG_PARZEN_DIR):
         sys.path.insert(0, str(path))
 
 import cnn
-from benchmarking.architectures import BASELINES
+from benchmarking.architectures import BASELINE_SUITES
 from benchmarking.evaluation import evaluate
 from data.eeg_dataset import SUPPORTED_DATASETS, make_final_data_loaders
 
 
-def main(model_dir: str, output_dir: str, run_id: str, seed: int, epochs: int) -> None:
+def main(model_dir: str, output_dir: str, run_id: str, seed: int, epochs: int, suite: str) -> None:
     model_root = Path(model_dir).expanduser().resolve()
     root = Path(output_dir).expanduser().resolve() / run_id / f"epochs-{epochs}"
     results_file = root / "test_results.jsonl"
@@ -37,7 +37,7 @@ def main(model_dir: str, output_dir: str, run_id: str, seed: int, epochs: int) -
             batch_size=cnn.TRAINING["batch_size"],
             seed=seed,
         )
-        for name, factory in BASELINES.items():
+        for name, factory in BASELINE_SUITES[suite].items():
             model_path = model_root / f"{name}_trained-{dataset}.pt"
             checkpoint = torch.load(model_path, map_location=device, weights_only=False)
             if checkpoint["seed"] != seed or checkpoint["epochs"] != epochs:
@@ -71,5 +71,6 @@ if __name__ == "__main__":
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--epochs", type=int, required=True)
+    parser.add_argument("--suite", choices=tuple(BASELINE_SUITES), default="fixed")
     args = parser.parse_args()
-    main(args.model_dir, args.output_dir, args.run_id, args.seed, args.epochs)
+    main(args.model_dir, args.output_dir, args.run_id, args.seed, args.epochs, args.suite)

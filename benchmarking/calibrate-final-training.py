@@ -19,7 +19,7 @@ for path in (REPO_ROOT, EEG_PARZEN_DIR):
         sys.path.insert(0, str(path))
 
 import cnn
-from benchmarking.architectures import BASELINES
+from benchmarking.architectures import BASELINE_SUITES
 from data.eeg_dataset import SUPPORTED_DATASETS, make_data_loaders
 
 
@@ -64,7 +64,7 @@ def evaluate_curve(model, loader, device) -> dict[str, float]:
     }
 
 
-def main(output_dir: str, run_id: str, seed: int) -> None:
+def main(output_dir: str, run_id: str, seed: int, suite: str) -> None:
     root = Path(output_dir).expanduser().resolve() / run_id
     results_file = root / "calibration_results.jsonl"
     if results_file.exists():
@@ -85,7 +85,7 @@ def main(output_dir: str, run_id: str, seed: int) -> None:
             batch_size=cnn.TRAINING["batch_size"],
             shuffle=False,
         )
-        for name, factory in BASELINES.items():
+        for name, factory in BASELINE_SUITES[suite].items():
             cnn.seed_everything(seed)
             loaders["train"].generator.manual_seed(seed)
             model = factory(info["channels"]).to(device)
@@ -141,5 +141,6 @@ if __name__ == "__main__":
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument("--suite", choices=tuple(BASELINE_SUITES), default="fixed")
     args = parser.parse_args()
-    main(args.output_dir, args.run_id, args.seed)
+    main(args.output_dir, args.run_id, args.seed, args.suite)

@@ -7,9 +7,11 @@ source .venv/bin/activate
 SEED="${1:?Usage: bash benchmarking/run/run-final-training.sh SEED RUN_ID EPOCHS}"
 RUN_ID="${2:?Usage: bash benchmarking/run/run-final-training.sh SEED RUN_ID EPOCHS}"
 EPOCHS="${3:?Usage: bash benchmarking/run/run-final-training.sh SEED RUN_ID EPOCHS}"
+SUITE="${4:-fixed}"
 
 python benchmarking/final-training.py \
     --output-dir "data/seed-${SEED}/benchmarking/final-training" \
     --run-id "$RUN_ID" \
     --seed "$SEED" \
-    --epochs "$EPOCHS"
+    --epochs "$EPOCHS" \
+    --suite "$SUITE"

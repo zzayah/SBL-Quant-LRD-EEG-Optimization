@@ -169,6 +169,39 @@ def dilated_temporal(input_channels: int) -> nn.Sequential:
     )
 
 
+def _scaled_eegnet(input_channels: int, width: int) -> nn.Sequential:
+    return _build(
+        input_channels,
+        width,
+        31,
+        2,
+        4,
+        [(2 * width, 15, 2, 1), (3 * width, 7, 2, 1)],
+        0.3,
+        "elu",
+    )
+
+
+def scaled_xs(input_channels: int) -> nn.Sequential:
+    return _scaled_eegnet(input_channels, 4)
+
+
+def scaled_s(input_channels: int) -> nn.Sequential:
+    return _scaled_eegnet(input_channels, 16)
+
+
+def scaled_m(input_channels: int) -> nn.Sequential:
+    return _scaled_eegnet(input_channels, 32)
+
+
+def scaled_l(input_channels: int) -> nn.Sequential:
+    return _scaled_eegnet(input_channels, 56)
+
+
+def scaled_xl(input_channels: int) -> nn.Sequential:
+    return _scaled_eegnet(input_channels, 80)
+
+
 BASELINES: dict[str, Callable[[int], nn.Sequential]] = {
     "compact_eegnet": compact_eegnet,
     "wide_eegnet": wide_eegnet,
@@ -176,3 +209,13 @@ BASELINES: dict[str, Callable[[int], nn.Sequential]] = {
     "deep_separable": deep_separable,
     "dilated_temporal": dilated_temporal,
 }
+
+SCALED_BASELINES: dict[str, Callable[[int], nn.Sequential]] = {
+    "scaled_xs": scaled_xs,
+    "scaled_s": scaled_s,
+    "scaled_m": scaled_m,
+    "scaled_l": scaled_l,
+    "scaled_xl": scaled_xl,
+}
+
+BASELINE_SUITES = {"fixed": BASELINES, "scaled": SCALED_BASELINES}

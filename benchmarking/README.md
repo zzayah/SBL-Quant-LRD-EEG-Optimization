@@ -4,6 +4,10 @@ The five fixed CNN baselines follow the same three-stage evaluation protocol as
 the NAS-selected architectures. Locked test subjects are accessed only during
 final testing.
 
+The optional `scaled` suite holds topology constant and varies only width. Its
+five models span approximately 1.3k to 86k parameters on BNCI, covering the NAS
+capacity range without confounding capacity with architecture family.
+
 ## 1. Calibrate final-training length
 
 Calibration trains every baseline for 100 epochs on the development
@@ -16,6 +20,14 @@ Run one seed per terminal:
 bash benchmarking/run/run-calibrate.sh 0 baseline-seed0
 bash benchmarking/run/run-calibrate.sh 1 baseline-seed1
 bash benchmarking/run/run-calibrate.sh 2 baseline-seed2
+```
+
+To calibrate the size-controlled suite instead:
+
+```bash
+bash benchmarking/run/run-calibrate.sh 0 scaled-seed0 scaled
+bash benchmarking/run/run-calibrate.sh 1 scaled-seed1 scaled
+bash benchmarking/run/run-calibrate.sh 2 scaled-seed2 scaled
 ```
 
 Each run produces 150 records: five baselines, three datasets, and ten epoch
