@@ -65,14 +65,13 @@
 - Retrain the selected architecture from scratch using the combined training
   and validation subjects before evaluating once on the locked test subjects.
 - After selecting one winner per dataset, run the predetermined 3×3 transfer
-  matrix. For each architecture-target pair, calibrate training duration on
-  the original target training/validation partition for at most 100 epochs
-  with patience 15; use the median best epoch across BNCI's three folds. Then
-  reinitialize and train for exactly that duration on the target dataset's
-  combined development subjects, using normalization computed only from those
-  subjects. Evaluate each resulting model once on the target dataset's locked
-  test subjects and retain the nine final checkpoints. `eeg-parzen/test-best.py`
-  implements this procedure and remains separate from the NAS launcher.
+  matrix. First train each architecture-target pair for 100 epochs on its fixed
+  training/validation split, recording metrics and weights every 10 epochs.
+  Choose a fixed epoch count from those learning curves. Then reinitialize and
+  train on the target dataset's combined development subjects using
+  normalization computed only from those subjects. Freeze the nine resulting
+  models before evaluating each once on the target dataset's locked test
+  subjects.
 
 The approved `eeg-parzen/cnn.py` search space contains an
 EEGNet-inspired temporal convolution, channel-spanning depthwise spatial
@@ -113,9 +112,9 @@ is excluded because it did not reproduce the CPU training result.
 Intentional differences are limited to the experiment design. The three EEG
 studies run sequentially on one GPU rather than as parallel prediction heads.
 SQLite is retained for interruption-safe runs, and there is no compare-track
-or downstream simulator stage. `eeg-parzen/test-best.py` is the EEG counterpart
-to Accuracy-NAS `test-best.py` and remains an explicit post-search command so
-locked-test evaluation cannot begin as part of NAS.
+or downstream simulator stage. Calibration, final training, and locked testing
+are explicit post-search commands so locked-test evaluation cannot begin as
+part of NAS.
 
 The search implementation is single-headed. Joint multi-dataset search and
 multi-objective efficiency experiments are possible follow-up experiments,
@@ -161,7 +160,7 @@ classifier, while ShallowConvNet explicitly extracts square/log band-power
 features. Global averaging discards much of the temporal power structure used
 for motor-imagery discrimination. Search efficiency also needs correction:
 only 22 of 50 PhysionetMI proposals completed because 28 were pruned by the
-channel-progression rule. Do not run `test-best.py` until a corrected search
+channel-progression rule. Do not run final training until a corrected search
 space beats the CSP-LDA validation baseline and class recalls are balanced.
 
 The next development run is intentionally PhysionetMI-only. It uses the two
@@ -181,10 +180,6 @@ that run as a second diagnostic. Do not enqueue the validated compact model in
 Optuna: doing so would bias TPE and change the experiment from an unseeded
 architecture search. Any CPU-versus-MPS reproduction check for that fixed
 model must run separately and must not be recorded as a NAS trial.
-
-The complete CUDA-node command is `eeg-parzen/run/run-cuda-nas.sh`. It creates
-the environment, prepares all datasets, and runs the three 100-proposal NAS
-studies sequentially.
 
 ## Pre-CUDA-run implementation audit
 
@@ -206,7 +201,7 @@ active run.
 
 ## Completed seed-0 CUDA NAS
 
-Run `nas-seed0` completed its first 50 proposals for each dataset on CUDA with no
+Run `nas-seed0-10a2117c` completed its first 50 proposals for each dataset on CUDA with no
 failed or pruned trials. Best validation balanced accuracies were 68.06% for
 BNCI2014_001 (trial 34, 47,034 parameters), 80.87% for Lee2019_MI (trial 44,
 102,786 parameters), and 78.04% for PhysionetMI (trial 20, 22,050 parameters).
@@ -244,12 +239,18 @@ measurements, so final latency must be measured sequentially during locked
 evaluation.
 
 Before locked testing, expand the architecture-search budget to 100 proposals
-per dataset for seeds 0, 1, and 2. Seed 0 resumes `nas-seed0` from 50 to 100;
-seeds 1 and 2 generate run IDs of the form `nas-seed<seed>-<id>`. The launchers are
-`eeg-parzen/run/run-nas-seed0.sh`, `run-nas-seed1.sh`, and
-`run-nas-seed2.sh`. `EEG_SEED` sets the single central seed used by subject
+per dataset for seeds 0, 1, and 2. Seed 0 resumes `nas-seed0-10a2117c` from 50 to 100;
+seeds 1 and 2 generate run IDs of the form `nas-seed<seed>-<id>`. Launch them
+with `eeg-parzen/run/run-nas.sh SEED [RUN_ID]`. The seed controls subject
 splitting, TPE, initialization, and data ordering. Keep all locked tests
 closed until these searches and their corresponding baselines are complete.
+
+After validation review fixes all nine seed-specific NAS winners, calibrate the
+training duration, train the frozen final models, and only then run locked
+testing.
+Concurrent execution is acceptable for
+accuracy training, but final accelerator latency must be measured separately
+without GPU contention. Never rerun or retune based on locked-test outcomes.
 
 - Fixed-architecture baselines: train five hand-designed sequential CNNs using
   the identical seed, subject splits, normalization, optimizer, batch size,
@@ -279,3 +280,56 @@ Do not concatenate trials from the three datasets for the initial study. Their
 channel layouts, acquisition systems, participant cohorts, and protocols are
 different. Initial NAS studies use the same search space and trial budget but
 separate data, weights, and Optuna studies.
+
+## Live run status — 2026-08-04 evening
+
+The canonical seed-0 run `nas-seed0-10a2117c` is complete at 100 COMPLETE trials for
+each dataset (300 total). SQLite timestamps confirm final completion at 12:34
+for BNCI2014_001, 16:03 for Lee2019_MI, and 17:53 for PhysionetMI. The final
+seed-0 PhysionetMI best remains trial 20 at 78.04% validation balanced
+accuracy.
+
+At 22:06, one active nonzero-seed run was on its third and final dataset,
+PhysionetMI, with trials 0--64 complete (65/100). Its best was trial 57 at
+76.5679% validation balanced accuracy. The immediately preceding Lee2019_MI
+study reached at least trial 96 and had a best of 83.3125% at trial 39. Confirm
+the run ID/seed from its tmux command or SQLite path before recording these as
+final seed-specific results; the pasted Optuna lines do not contain the study
+name.
+
+At 22:13, seed 2 run `nas-seed2-61979a0f` completed Lee2019_MI at 100/100.
+Its winner is trial 54 with 78.125% validation balanced accuracy. It then
+created its third and final study, `nas-seed2-61979a0f_physionet_mi`. This
+identification is conclusive from the Optuna study-creation line.
+
+Do not access any locked test subjects yet. After seeds 1 and 2 finish, audit
+the nine canonical SQLite studies and validation winners, then obtain explicit
+user confirmation before any final-testing command. Final evaluation is a 3x3
+architecture-transfer grid per seed: each source-dataset NAS winner is
+reinitialized and trained on each target dataset's combined train+validation
+subjects, then evaluated once on that target's locked test subjects. Average
+each grid cell across seeds 0, 1, and 2; diagonal cells are primary
+dataset-specific NAS results and off-diagonal cells measure architecture-only
+transfer. Never transfer learned weights or concatenate datasets.
+
+### Local artifact audit after GPU pull
+
+The local pull inspected on 2026-08-04 is a partial snapshot of the live GPU
+runs. Canonical completed winners at that snapshot are:
+
+- Seed 0: BNCI trial 79 = 68.2099% (48,130 parameters); Lee trial 76 =
+  81.3750% (86,274); PhysioNet trial 20 = 78.0363% (22,050).
+- Seed 1: BNCI trial 30 = 77.6813% (30,306); Lee trial 39 = 83.3125%
+  (86,018). Seed-1 PhysioNet had only 71 COMPLETE plus one RUNNING trial;
+  its provisional best was trial 66 = 77.8592% and is not final.
+- Seed 2: Lee trial 54 = 78.1250% (56,642). Seed-2 BNCI contains 100 COMPLETE
+  trials; its final best is trial 84 = 74.7492%. Seed-2 PhysioNet had only
+  one COMPLETE plus one RUNNING trial and no meaningful final result yet.
+
+Reminder: rerun seed-2 BNCI for the separate follow-up task.
+
+All completed canonical JSONL line counts match SQLite COMPLETE counts. The
+three completed Lee studies average 80.9375% validation balanced accuracy
+(sample SD 2.6213 percentage points). Do not average BNCI or PhysioNet across
+seeds until their incomplete studies finish. All listed winners use the
+flatten head; activation and block counts vary.

@@ -34,9 +34,12 @@ def _run_search(dataset: str, output_dir: str, session_id: str, seed: int) -> No
         study_name=f"{session_id}_{dataset}",
         load_if_exists=True,
     )
-    remaining_trials = max(0, N_TRIALS - len(study.trials))
+    completed_trials = sum(
+        trial.state == optuna.trial.TrialState.COMPLETE for trial in study.trials
+    )
+    remaining_trials = max(0, N_TRIALS - completed_trials)
     if remaining_trials == 0:
-        print(f"{dataset}: study already contains {N_TRIALS} trials.")
+        print(f"{dataset}: study already contains {N_TRIALS} completed trials.")
         return
     study.optimize(
         lambda trial: cnn.objective(trial, dataset_name=dataset, seed=seed),

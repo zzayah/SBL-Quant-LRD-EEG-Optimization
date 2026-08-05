@@ -247,11 +247,12 @@ def make_final_data_loaders(
     dataset_name: str,
     batch_size: int,
     seed: int,
+    include_test: bool = True,
     num_workers: int = 0,
     processed_root: Path = PROCESSED_ROOT,
     split_file: Path | None = None,
 ) -> tuple[dict[str, DataLoader], dict]:
-    """Build combined-development training and locked-test loaders."""
+    """Build a combined-development loader and optionally the locked-test loader."""
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
     split_file = split_file or split_file_for_seed(seed)
@@ -260,7 +261,9 @@ def make_final_data_loaders(
         train_subjects = split["development"]
     else:
         train_subjects = sorted(split["train"] + split["validation"])
-    subjects = {"train": train_subjects, "test": split["test"]}
+    subjects = {"train": train_subjects}
+    if include_test:
+        subjects["test"] = split["test"]
     mean, std = compute_channel_stats(dataset_name, train_subjects, processed_root)
     datasets = {
         name: SubjectEEGDataset(

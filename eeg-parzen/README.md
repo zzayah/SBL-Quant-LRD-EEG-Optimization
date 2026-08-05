@@ -10,11 +10,11 @@ maximizes subject-held-out validation balanced accuracy.
   Optuna objective.
 - `evaluation.py`: loss, accuracy, balanced accuracy, and per-class recall.
 - `control-logic.py`: the single global `SEED = 0` and TPE orchestration.
-- `run/run-eeg-parzen.sh`: minimal wrapper for all three studies.
+- `run/run-nas.sh`: seeded launcher for all three studies.
 - `run/run-physionet.sh`: focused PhysioNet-only development search.
-- `test-best.py`: winner selection, final retraining, and the 3×3
-  architecture-transfer test matrix.
-- `run/run-test-best.sh`: explicit locked-test launcher used only after NAS.
+- `calibrate-final-training.py`: 10-epoch checkpoint learning curves.
+- `final-training.py`: fresh training on all development subjects.
+- `final-testing.py`: locked-test evaluation of frozen final models.
 
 BNCI candidates are scored by mean balanced accuracy over three subject folds.
 OpenBMI and PhysioNet use their fixed subject-held-out validation partitions.
@@ -25,7 +25,7 @@ DataLoader shuffling, TPE sampling, and creation/selection of the matching
 
 ## Search protocol
 
-The protocol uses 50 trials per dataset, 50 maximum epochs, patience
+The protocol uses 100 trials per dataset, 50 maximum epochs, patience
 10, AdamW, learning rate `1e-3`, weight decay `1e-4`, batch size 64, and a hard
 350,000-parameter ceiling. The architecture search allows one to six temporal
 blocks, caps all learned feature widths at 128, and considers ELU, GELU, and
@@ -37,7 +37,7 @@ searched. Given the width cap, the current architecture family remains far
 below the parameter ceiling; the ceiling is retained as a defensive check.
 
 Each dataset stores its Optuna study in SQLite. Reusing the same optional
-`RUN_ID` resumes that study toward a total of 50 trials. Pruned and failed
+`RUN_ID` resumes that study toward a total of 100 trials. Pruned and failed
 trials, including their reasons, are also appended to a separate JSONL file.
 Per-trial checkpoints are not retained. The JSONL records preserve sampled
 architectures, parameters, fold metrics, parameter counts, training constants,
@@ -53,65 +53,66 @@ bash eeg-parzen/run/run-physionet.sh
 
 This creates a new run ID and leaves earlier studies unchanged.
 
-## Complete GPU-node run
-
-On a fresh CUDA node, create the environment, prepare all data, and run all
-three studies with:
+With the environment configured and data prepared, use:
 
 ```bash
-bash eeg-parzen/run/run-cuda-nas.sh
-```
-
-The script uses Python 3.14, creates `.venv`, installs `requirements.txt`,
-checks CUDA, downloads and validates all datasets, and runs all three
-100-proposal studies sequentially.
-
-For an already configured environment with prepared data, use:
-
-```bash
-bash eeg-parzen/run/run-eeg-parzen.sh
+bash eeg-parzen/run/run-nas.sh SEED [RUN_ID]
 ```
 
 Run it inside `tmux`; output is stored under
-`data/seed-0/eeg-parzen/<dataset>/<run-id>/`.
+`data/seed-<seed>/eeg-parzen/<dataset>/<run-id>/`.
 
 ## Three-seed 100-trial runs
 
 Run these in three separate GPU-node terminals:
 
 ```bash
-bash eeg-parzen/run/run-nas-seed0.sh
-bash eeg-parzen/run/run-nas-seed1.sh
-bash eeg-parzen/run/run-nas-seed2.sh
+bash eeg-parzen/run/run-nas.sh 0 nas-seed0-10a2117c
+bash eeg-parzen/run/run-nas.sh 1
+bash eeg-parzen/run/run-nas.sh 2
 ```
 
-Seed 0 resumes run `nas-seed0` from 50 to 100 total trials. Seeds 1 and 2
+Seed 0 resumes run `nas-seed0-10a2117c` from 50 to 100 total trials. Seeds 1 and 2
 generate run IDs in the form `nas-seed<seed>-<id>` and run 100 trials per
 dataset under `data/seed-1/` and `data/seed-2/`. Pass a printed run ID back to
-the same launcher to resume it. `EEG_SEED` sets the single central seed in
-`control-logic.py`, which controls splitting, TPE, initialization, and data
-ordering.
+the same launcher to resume it. The seed controls splitting, TPE,
+initialization, and data ordering.
 
-## Final retraining and locked testing
+## Calibration, final training, and locked testing
 
-After all three studies finish and the trial logs have been reviewed, run the
-selected-architecture transfer matrix once:
+First, measure development learning curves for the nine architecture-target
+pairs. This trains for 100 epochs, saves weights every 10 epochs, and does not
+load locked-test subjects. BNCI uses its fixed fold 0 split for this analysis.
 
 ```bash
-bash eeg-parzen/run/run-test-best.sh RUN_ID
+bash eeg-parzen/run/run-calibrate.sh SEED RUN_ID
 ```
 
-For each dataset-specific winner, this reconstructs the architecture with the
-target dataset's input-channel count and calibrates its training duration using
-only the target's original training and validation subjects. Calibration runs
-for at most 100 epochs with patience 15; BNCI uses the median best epoch across
-its three folds. The model is then reinitialized with the same seed and trained
-for exactly that many epochs on all target development subjects before locked
-testing. The result is nine independently trained models: three selected
-architectures by three target datasets. No weights or normalization statistics
-transfer between datasets.
+After reviewing the train and validation curves, choose a fixed epoch count.
+Train the nine models from fresh weights on all target development subjects:
 
-Results and final checkpoints are written under
-`data/seed-0/eeg-parzen/test-best/<run-id>/`. The runner refuses to overwrite
-an existing `transfer_results.jsonl`, reducing the chance of accidentally
-repeating locked-test evaluation.
+```bash
+bash eeg-parzen/run/run-final-training.sh SEED RUN_ID EPOCHS
+```
+
+Only after those models are frozen, evaluate them once on the locked subjects:
+
+```bash
+bash eeg-parzen/run/run-final-testing.sh SEED RUN_ID EPOCHS
+```
+
+No weights or normalization statistics transfer between datasets. Calibration,
+final training, and final testing write to separate directories. Each stage
+refuses to overwrite an existing result file.
+
+After all three 100-trial studies and their corresponding baselines have been
+reviewed, the three predetermined seed-specific locked evaluations are:
+
+```bash
+bash eeg-parzen/run/run-final-testing.sh 0 nas-seed0-10a2117c EPOCHS
+bash eeg-parzen/run/run-final-testing.sh 1 nas-seed1-47f127b6 EPOCHS
+bash eeg-parzen/run/run-final-testing.sh 2 nas-seed2-61979a0f EPOCHS
+```
+
+They may train simultaneously for accuracy evaluation, but concurrent GPU use
+invalidates their latency measurements. Run final timing separately.
