@@ -1,41 +1,54 @@
+# EEG-Parzen: Neural Architecture Search with Tree-Structured Parzen Estimation for Motor-Imagery Classification
+
 ## Introduction
 
-Many disciplines have been tasked with decoding electroencephalography (EEG) signals, particularly across neuroscience, computer science, and electrical engineering. These communities have developed a variety of paradigms that map multichannel EEG into cognitive, motor, and affective states, enabling applications such as brain-computer interfaces (BCIs), emotion recognition, and seizure prevention.¹ ⁵ ⁹ Deep learning is the dominant approach for accurately classifying EEG signals, particularly using Convolutional Neural Networks (CNNs), Spiking Neural Networks (SNNs) and, more recently, transformer-based models.¹ ⁹ ⁵ In parallel, Large Language Models (LLMs) have demonstrated that deep learning, and particularly transformer models like ChatGPT, can achieve high accuracy across diverse domains and query sizes. However, state-of-the-art LLMs often rely on hundreds of billions of parameters and correspondingly high energy and storage footprints. The tradeoff of energy and accuracy has spurred immense research improving time, space, and energy efficiency via structured sparsity, mixed-precision and post-training quantization, and low-rank decompositions (LRDs) of weight tensors.² ⁴ ¹¹ ⁶ ¹⁰ These techniques exploit that many parameters are redundant or can be represented with lower precision with minimal performance degradation.
+Electroencephalography (EEG) measures electrical activity across the scalp and has historically supported the development of sophisticated brain-computer interfaces that interpret neural signals. The selected domain of neural activity detection is motor imagery, whose decoding focuses on recognizing imagined movements, such as left- or right-hand movement, from multichannel EEG. Convolutional neural networks (CNNs) are well suited to this task because they can learn both temporal patterns and relationships between electrode channels.¹ ² However, EEG signals contain substantial noise, vary between people, and are often available only in small datasets.¹ ³ CNN architectures are therefore difficult to design without becoming unnecessarily large or overfitting to the training subjects. This study proposes neural architecture search (NAS) as a practical method for identifying promising CNN architectures capable of generalizing to unseen subjects. Specifically, the NAS uses a tree-structured Parzen estimator (TPE) to optimize architectures for left- versus right-hand motor-imagery classification.⁴ It searches EEG-specific temporal and spatial convolutional architectures independently on BNCI2014_001, Lee2019_MI, and PhysionetMI using subject-held-out balanced accuracy, then retrains selected models and evaluates them on locked test subjects. Fixed CNN baselines and cross-dataset transfer experiments provide comparisons of classification performance, model size, and inference efficiency.
 
-EEG decoding faces a related, albeit distinct, set of constraints. Signals are low-SNR, highly non-stationary, and usually available in small datasets; meanwhile, many target applications (wearables, implanted, or bedside systems) operate under computation and energy constraints.¹ ⁸ As a result, there is a growing interest in models that simultaneously maintain decoding accuracy, improve interpretability, and reduce computational cost.¹ ⁸ Recent work includes quantization-aware training for affective state, sparse Bayesian learning (SBL) that combines low-rank spatiotemporal filters with deliberate sparsity, and low-rank matrix and tensor factorization that compress deep networks.¹² ⁷ ³ ⁶ ¹⁰ However, despite these advances, there is little systemic, side-by-side evaluation of these paradigms within a unified EEG decoding setting.¹ ⁸ 
+## EEG-Parzen Workflow
 
-This research proposes a comparative study of three families of methods for energy-aware EEG decoding: (1) quantization and mixed precision approaches, (2) low-rank matrix decompositions, and (3) Bayesian or statistical sparsity-inducing learning. This research will implement simple but representative models instantiating each paradigm on common EEG classification tasks (with an emphasis on affective and BCI-relevant paradigms), define shared evaluation metrics that capture decoding performance and computational efficiency, and analyze the resulting trade-offs. The research goal is to formulate practical recommendations about which techniques are most promising for energy sophistication alongside fact-checking against relevant literature.
+Run experiment commands from the repository root. The scripts under
+`eeg-parzen/run/` execute the complete experiment pipeline for one seed:
 
-## References
+1. Read the seed and create or reuse a run ID.
+2. Create subject-held-out splits for the three EEG datasets.
+3. Run an independent Optuna TPE architecture search for each dataset.
+4. Select one architecture per dataset and measure the cross-dataset development learning curves.
+5. Retrain the nine architecture-target pairs from scratch on all development subjects.
+6. Evaluate the frozen models once on the locked test subjects.
 
-¹ Craik et al., “Deep learning for electroencephalogram (EEG) classification tasks: a review,” J Neural Eng., 2019.
+With the environment configured and data prepared, begin the architecture
+search with:
 
-² Farina et al., “Sparsity in transformers: A systematic literature review,” Neurocomputing, 2024.
+```bash
+bash eeg-parzen/run/run-nas.sh SEED [RUN_ID]
+```
 
-³ Gao et al., “Emotion recognition from multichannel EEG signals based on low-rank subspace self-representation features,” Biomed. Signal Process. Control, 2025.
+If no run ID is supplied, the script generates one. Supplying that run ID
+again resumes the same SQLite studies toward the configured trial count.
 
-⁴ Rakka et al., “A Review of State-of-the-art Mixed-Precision Neural Network Frameworks,” IEEE TPAMI, 2024.
+After the search finishes, run the remaining stages in order with the same
+seed and run ID:
 
-⁵ Song et al., “EEG Conformer: Convolutional Transformer for EEG Decoding and Visualization,” IEEE TNSRE, 2022.
+```bash
+bash eeg-parzen/run/run-calibrate.sh SEED RUN_ID
+bash eeg-parzen/run/run-final-training.sh SEED RUN_ID EPOCHS
+bash eeg-parzen/run/run-final-testing.sh SEED RUN_ID EPOCHS
+```
 
-⁶ Swaminathan et al., “Sparse low rank factorization for deep neural network compression,” Neurocomputing, 2020.
+Calibration measures development learning curves without loading the locked
+test subjects. After reviewing those curves, choose one epoch count for final
+training. Final testing should only be run after the resulting models are
+frozen.
 
-⁷ Wang et al., “Sparse Bayesian Learning for End-to-End EEG Decoding,” IEEE TPAMI, 2023.
+The primary experiment settings are source constants: `SEED` and `N_TRIALS`
+in `eeg-parzen/control-logic.py`, and the search space and training settings in
+`eeg-parzen/cnn.py`. Classification metrics are implemented in
+`eeg-parzen/evaluation.py`.
 
-⁸ Xie and Oniga, “A Comprehensive Review of Hardware Acceleration Techniques and Convolutional Neural Networks for EEG Signals,” Sensors, 2024.
+## Motor-Imagery Data
 
-⁹ Yan et al., “EEG classification with spiking neural network: Smaller, better, more energy efficient,” Smart Health, 2022.
-
-¹⁰ Yang and Liu, “Stable Low-Rank CP Decomposition for Compression of Convolutional Neural Networks Based on Sensitivity,” Applied Sciences, 2024.
-
-¹¹ Zhang et al., “Post-training Quantization for Neural Networks with Provable Guarantees,” SIAM JMDS, 2023.
-
-¹² Zhong et al., “Knowledge-guided quantization-aware training for EEG-based emotion recognition,” J. Vis. Commun. Image Represent., 2025.
-
-## Motor-imagery data import
-
-Install the dependencies, then smoke-test one subject from each source before a
-full download:
+Install the dependencies, then test one subject from each dataset before
+beginning the full download:
 
 ```bash
 python -m pip install -r requirements.txt
@@ -44,8 +57,31 @@ python data/prepare_data.py --dataset lee2019_mi --subjects 1
 python data/prepare_data.py --dataset physionet_mi --subjects 1
 ```
 
-Run `python data/prepare_data.py` to create `data/seed-0/splits_seed0.json`, download
-and export every supported subject, and validate the complete result. The
-operation is resumable. Raw MOABB data is cached under `data/moabb_raw`;
-normalized per-subject arrays and metadata are written under
-`data/moabb_processed`. Both large locations are ignored by Git.
+To download and prepare every supported subject, run:
+
+```bash
+python data/prepare_data.py
+```
+
+This creates `data/seed-0/splits_seed0.json`, downloads the MOABB datasets,
+exports the subject arrays, and validates the complete result. The operation
+is resumable. Raw MOABB data is cached under `data/moabb_raw`, while normalized
+subject arrays and metadata are written under `data/moabb_processed`. Both
+large locations are ignored by Git.
+
+## References
+
+¹ Craik et al., “Deep learning for electroencephalogram (EEG) classification tasks: a review,” J. Neural Eng., 2019.
+
+² Lawhern et al., “EEGNet: a compact convolutional neural network for EEG-based brain-computer interfaces,” J. Neural Eng., 2018.
+
+³ Jayaram and Barachant, “MOABB: trustworthy algorithm benchmarking for BCIs,” J. Neural Eng., 2018.
+
+⁴ Bergstra et al., “Algorithms for Hyper-Parameter Optimization,” Advances in Neural Information Processing Systems, 2011.
+
+## Credit
+
+This repository adapts the Accuracy-NAS structure and Optuna workflow from
+[NAS-in-the-Loop](https://github.com/zzayah/NAS-in-the-Loop). NAS-in-the-Loop
+was developed by Zayah Cortright, Prateek Ganguli, Tingan Zhu, and Samarjit
+Chakraborty.
